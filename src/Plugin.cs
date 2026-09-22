@@ -11,7 +11,7 @@ namespace KirbyScream
     {
         public const string GUID = "toiletking.peak.kirbyscream";
         public const string NAME = "KirbyScream";
-        public const string VERSION = "1.1.0";
+        public const string VERSION = "1.1.1";
 
         internal static ManualLogSource Log;
         internal static string PluginDir;

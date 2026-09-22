@@ -1,4 +1,12 @@
-# PEAK KirbyScream mod (dev notes)
+# PEAK KirbyScream mod
+
+A BepInEx plugin for [PEAK](https://store.steampowered.com/app/3527290/PEAK/) that plays a meme Kirby
+falling scream from the moment you start falling until you land or die. Other players running the mod
+hear it positioned on you, with the same distance falloff as the game's proximity voice chat.
+
+**Thunderstore:** https://thunderstore.io/c/peak/p/toiletking/KirbyScream/
+
+## Dev notes
 
 BepInEx 5 plugin for PEAK. Source in `src/`, Thunderstore package files in `package/`.
 

@@ -1,7 +1,7 @@
 {
     "name": "KirbyScream",
-    "version_number": "1.1.0",
-    "website_url": "https://thunderstore.io/c/peak/p/toiletking/KirbyScream/",
+    "version_number": "1.1.1",
+    "website_url": "https://github.com/gtoki3177/peak-kirbyscream",
     "description": "Plays the meme Kirby falling scream the moment you start falling, until you land or die. Everyone else with the mod hears it coming from you, like voice chat.",
     "dependencies": [
         "BepInEx-BepInExPack_PEAK-5.4.75301"
