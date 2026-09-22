@@ -1,0 +1,81 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>KirbyScream</AssemblyName>
+    <RootNamespace>KirbyScream</RootNamespace>
+    <Version>1.0.0</Version>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <DebugType>none</DebugType>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+
+    <!-- Override on the command line if your paths differ:
+         dotnet build -c Release -p:GameDir="X:\PEAK" -p:ProfileDir="...\PEAK\profiles\Default" -->
+    <GameDir Condition="'$(GameDir)' == ''">D:\SteamLibrary\steamapps\common\PEAK</GameDir>
+    <ProfileDir Condition="'$(ProfileDir)' == ''">$(APPDATA)\Thunderstore Mod Manager\DataFolder\PEAK\profiles\Default</ProfileDir>
+    <ManagedDir>$(GameDir)\PEAK_Data\Managed</ManagedDir>
+    <BepInExCore>$(ProfileDir)\BepInEx\core</BepInExCore>
+
+    <!-- Where the built mod gets copied for local testing, and where the Thunderstore zip lands -->
+    <TestPluginDir>$(ProfileDir)\BepInEx\plugins\toiletking-KirbyScream</TestPluginDir>
+    <DistDir>$(MSBuildProjectDirectory)\dist</DistDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="src\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="BepInEx">
+      <HintPath>$(BepInExCore)\BepInEx.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(BepInExCore)\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(ManagedDir)\Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Zorro.Core.Runtime">
+      <HintPath>$(ManagedDir)\Zorro.Core.Runtime.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Unity.InputSystem">
+      <HintPath>$(ManagedDir)\Unity.InputSystem.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <!-- Every Unity module and Photon assembly the game ships; Character's base types live in Photon. -->
+    <Reference Include="$(ManagedDir)\UnityEngine.dll;$(ManagedDir)\UnityEngine.*.dll;$(ManagedDir)\Photon*.dll">
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Stage a Thunderstore-ready package, copy it into the mod-manager profile for testing, and zip it. -->
+  <Target Name="PackageMod" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+    <PropertyGroup>
+      <StageDir>$(MSBuildProjectDirectory)\obj\stage\</StageDir>
+      <ZipPath>$(DistDir)\toiletking-KirbyScream-$(Version).zip</ZipPath>
+    </PropertyGroup>
+    <ItemGroup>
+      <StageFiles Include="$(TargetPath)" />
+      <StageFiles Include="package\manifest.json;package\README.md;package\CHANGELOG.md;package\icon.png" />
+      <StageFiles Include="package\*.ogg;package\*.wav;package\*.mp3" />
+    </ItemGroup>
+    <RemoveDir Directories="$(StageDir)" />
+    <Copy SourceFiles="@(StageFiles)" DestinationFolder="$(StageDir)" />
+    <MakeDir Directories="$(TestPluginDir);$(DistDir)" />
+    <Copy SourceFiles="@(StageFiles)" DestinationFolder="$(TestPluginDir)" />
+    <Delete Files="$(ZipPath)" />
+    <ZipDirectory SourceDirectory="$(StageDir)" DestinationFile="$(ZipPath)" Overwrite="true" />
+    <Message Importance="high" Text="KirbyScream: copied to $(TestPluginDir)" />
+    <Message Importance="high" Text="KirbyScream: Thunderstore zip at $(ZipPath)" />
+  </Target>
+
+</Project>

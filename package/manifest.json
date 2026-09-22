@@ -1,0 +1,9 @@
+{
+    "name": "KirbyScream",
+    "version_number": "1.0.0",
+    "website_url": "",
+    "description": "Plays the meme Kirby falling scream the moment you start falling, until you land or die.",
+    "dependencies": [
+        "BepInEx-BepInExPack_PEAK-5.4.75301"
+    ]
+}
