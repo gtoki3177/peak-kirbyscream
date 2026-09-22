@@ -19,10 +19,20 @@ dotnet build -c Release
 Paths default to `D:\SteamLibrary\steamapps\common\PEAK` and the Thunderstore Mod Manager
 `PEAK/profiles/Default` profile. Override with `-p:GameDir=... -p:ProfileDir=...`.
 
-A Release build also:
+A Release build writes `dist/toiletking-KirbyScream-<version>.zip`, ready to upload to Thunderstore.
 
-1. copies the dll + `package/*` into the profile's `BepInEx/plugins/toiletking-KirbyScream/` for testing;
-2. writes `dist/toiletking-KirbyScream-<version>.zip`, ready to upload to Thunderstore.
+The mod itself is installed through Thunderstore Mod Manager like any other, so the normal loop is:
+bump the version in `KirbyScream.csproj`, `package/manifest.json` and `src/Plugin.cs`, build, upload
+the zip, then update the mod in the manager.
+
+To try a change without publishing, deploy straight into the profile instead:
+
+```
+dotnet build -c Release -p:DeployToProfile=true
+```
+
+That overwrites the manager's copy of the mod folder, so the manager will keep showing whatever
+version it last installed until you update it there again.
 
 ## Audio
 

@@ -21,9 +21,14 @@
     <ManagedDir>$(GameDir)\PEAK_Data\Managed</ManagedDir>
     <BepInExCore>$(ProfileDir)\BepInEx\core</BepInExCore>
 
-    <!-- Where the built mod gets copied for local testing, and where the Thunderstore zip lands -->
-    <TestPluginDir>$(ProfileDir)\BepInEx\plugins\toiletking-KirbyScream</TestPluginDir>
+    <!-- Where the Thunderstore zip lands -->
     <DistDir>$(MSBuildProjectDirectory)\dist</DistDir>
+
+    <!-- Off by default: the mod is installed through Thunderstore Mod Manager, and writing over its
+         folder would leave the manager tracking a version that no longer matches what is on disk.
+         For a quick local test without publishing, build with -p:DeployToProfile=true. -->
+    <DeployToProfile Condition="'$(DeployToProfile)' == ''">false</DeployToProfile>
+    <TestPluginDir>$(ProfileDir)\BepInEx\plugins\toiletking-KirbyScream</TestPluginDir>
   </PropertyGroup>
 
   <ItemGroup>
@@ -57,7 +62,7 @@
     </Reference>
   </ItemGroup>
 
-  <!-- Stage a Thunderstore-ready package, copy it into the mod-manager profile for testing, and zip it. -->
+  <!-- Stage a Thunderstore-ready package and zip it. -->
   <Target Name="PackageMod" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
     <PropertyGroup>
       <StageDir>$(MSBuildProjectDirectory)\obj\stage\</StageDir>
@@ -70,12 +75,14 @@
     </ItemGroup>
     <RemoveDir Directories="$(StageDir)" />
     <Copy SourceFiles="@(StageFiles)" DestinationFolder="$(StageDir)" />
-    <MakeDir Directories="$(TestPluginDir);$(DistDir)" />
-    <Copy SourceFiles="@(StageFiles)" DestinationFolder="$(TestPluginDir)" />
+    <MakeDir Directories="$(DistDir)" />
     <Delete Files="$(ZipPath)" />
     <ZipDirectory SourceDirectory="$(StageDir)" DestinationFile="$(ZipPath)" Overwrite="true" />
-    <Message Importance="high" Text="KirbyScream: copied to $(TestPluginDir)" />
     <Message Importance="high" Text="KirbyScream: Thunderstore zip at $(ZipPath)" />
+
+    <MakeDir Directories="$(TestPluginDir)" Condition="'$(DeployToProfile)' == 'true'" />
+    <Copy SourceFiles="@(StageFiles)" DestinationFolder="$(TestPluginDir)" Condition="'$(DeployToProfile)' == 'true'" />
+    <Message Importance="high" Text="KirbyScream: deployed to $(TestPluginDir)" Condition="'$(DeployToProfile)' == 'true'" />
   </Target>
 
 </Project>
