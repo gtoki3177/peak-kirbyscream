@@ -1,27 +1,35 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using ExitGames.Client.Photon;
 using HarmonyLib;
+using Photon.Pun;
+using Photon.Realtime;
 using UnityEngine;
 using UnityEngine.Networking;
 
 namespace KirbyScream
 {
     /// <summary>
-    /// Watches the local player every frame. Starts the scream when a real fall begins and
-    /// stops it the moment the player lands, dies, grabs something or opens a parachute.
+    /// Watches the local player every frame. Starts the scream when a real fall begins and stops it
+    /// the moment the player lands, dies, grabs something or opens a parachute.
+    ///
+    /// Start and stop are broadcast over Photon, so everyone else running this mod hears the scream
+    /// positioned on the falling player, the same way proximity voice chat works.
     /// </summary>
-    public class FallScreamController : MonoBehaviour
+    public class FallScreamController : MonoBehaviour, IOnEventCallback
     {
         private static readonly string[] AudioExtensions = { ".ogg", ".wav", ".mp3" };
 
         // CharacterBalloons._isParachuteOpen is private; read it through Harmony's field accessor.
         private static readonly AccessTools.FieldRef<CharacterBalloons, bool> ParachuteOpenField = MakeParachuteRef();
 
-        private AudioSource _source;
         private AudioClip _clip;
-        private Coroutine _fade;
+
+        private ScreamVoice _localVoice;
+        private readonly Dictionary<int, ScreamVoice> _remoteVoices = new Dictionary<int, ScreamVoice>();
 
         private bool _screaming;
         private float _notFallingFor;
@@ -38,11 +46,15 @@ namespace KirbyScream
 
         private void Awake()
         {
-            _source = gameObject.AddComponent<AudioSource>();
-            _source.playOnAwake = false;
-            _source.spatialBlend = 0f;   // 2D: it's the local player's own scream
-            _source.priority = 0;
             StartCoroutine(LoadClip());
+        }
+
+        private void OnEnable() => PhotonNetwork.AddCallbackTarget(this);
+
+        private void OnDisable()
+        {
+            PhotonNetwork.RemoveCallbackTarget(this);
+            StopAllVoices();
         }
 
         // ------------------------------------------------------------------ loading
@@ -105,7 +117,6 @@ namespace KirbyScream
 
                 clip.name = Path.GetFileNameWithoutExtension(path);
                 _clip = clip;
-                _source.clip = clip;
                 Plugin.Log.LogInfo($"Scream ready: {clip.name} ({clip.length:0.00}s)");
             }
         }
@@ -157,7 +168,7 @@ namespace KirbyScream
             if (falling)
             {
                 _notFallingFor = 0f;
-                if (!_screaming) Begin();
+                if (!_screaming) Begin(c);
                 return;
             }
 
@@ -175,60 +186,103 @@ namespace KirbyScream
                 Stop("no longer falling");
         }
 
-        // ------------------------------------------------------------------ playback
+        // ------------------------------------------------------------------ local playback
 
-        private void Begin()
+        private void Begin(Character local)
         {
             _screaming = true;
             if (_clip == null) return;
 
-            if (_fade != null) { StopCoroutine(_fade); _fade = null; }
+            if (_localVoice == null)
+                _localVoice = ScreamVoice.Create(local, _clip, spatial: false);
 
-            if (Plugin.UseGameSfxMixer.Value && SFX_Player.instance != null && SFX_Player.instance.defaultMixerGroup != null)
-                _source.outputAudioMixerGroup = SFX_Player.instance.defaultMixerGroup;
-            else
-                _source.outputAudioMixerGroup = null;
-
-            _source.loop = Plugin.Loop.Value;
-            _source.volume = Plugin.Volume.Value;
-            _source.time = 0f;
-            _source.Play();
+            _localVoice.Play();
+            Broadcast(local, start: true);
 
             if (Plugin.DebugLog.Value) Plugin.Log.LogInfo("SCREAM start");
         }
 
         private void Stop(string reason)
         {
+            bool wasScreaming = _screaming;
             _screaming = false;
             _notFallingFor = 0f;
-            if (_clip == null || !_source.isPlaying) return;
 
-            if (Plugin.DebugLog.Value) Plugin.Log.LogInfo($"SCREAM stop ({reason})");
+            if (_localVoice != null) _localVoice.Stop();
 
-            float fade = Plugin.StopFadeSeconds.Value;
-            if (fade <= 0f)
+            if (wasScreaming)
             {
-                _source.Stop();
-                return;
+                Broadcast(Character.localCharacter, start: false);
+                if (Plugin.DebugLog.Value) Plugin.Log.LogInfo($"SCREAM stop ({reason})");
             }
-
-            if (_fade != null) StopCoroutine(_fade);
-            _fade = StartCoroutine(FadeOut(fade));
         }
 
-        private IEnumerator FadeOut(float seconds)
+        // ------------------------------------------------------------------ networking
+
+        private static bool CanBroadcast()
         {
-            float start = _source.volume;
-            float t = 0f;
-            while (t < seconds && _source.isPlaying)
+            return Plugin.ShareWithOthers.Value && PhotonNetwork.IsConnected && PhotonNetwork.InRoom;
+        }
+
+        private void Broadcast(Character local, bool start)
+        {
+            if (!CanBroadcast() || local == null || local.photonView == null) return;
+
+            var options = new RaiseEventOptions { Receivers = ReceiverGroup.Others };
+            PhotonNetwork.RaiseEvent(
+                (byte)Plugin.NetworkEventCode.Value,
+                new object[] { local.photonView.ViewID, start },
+                options,
+                SendOptions.SendReliable);
+        }
+
+        public void OnEvent(EventData photonEvent)
+        {
+            if (photonEvent.Code != (byte)Plugin.NetworkEventCode.Value) return;
+            if (!Plugin.HearOthers.Value) return;
+
+            if (!(photonEvent.CustomData is object[] payload) || payload.Length < 2) return;
+            if (!(payload[0] is int viewId) || !(payload[1] is bool start)) return;
+
+            if (!Character.GetCharacterWithPhotonID(viewId, out Character character) || character == null)
+                return;
+
+            if (character.IsLocal) return;   // our own echo, already handled locally
+
+            if (start) StartRemote(viewId, character);
+            else StopRemote(viewId);
+        }
+
+        private void StartRemote(int viewId, Character character)
+        {
+            if (_clip == null) return;
+
+            if (!_remoteVoices.TryGetValue(viewId, out ScreamVoice voice) || voice == null)
             {
-                t += Time.unscaledDeltaTime;
-                _source.volume = Mathf.Lerp(start, 0f, t / seconds);
-                yield return null;
+                voice = ScreamVoice.Create(character, _clip, spatial: true);
+                _remoteVoices[viewId] = voice;
             }
-            _source.Stop();
-            _source.volume = start;
-            _fade = null;
+
+            voice.Play();
+            if (Plugin.DebugLog.Value) Plugin.Log.LogInfo($"SCREAM start (remote {character.characterName})");
+        }
+
+        private void StopRemote(int viewId)
+        {
+            if (!_remoteVoices.TryGetValue(viewId, out ScreamVoice voice)) return;
+
+            if (voice != null) voice.Stop();
+            if (Plugin.DebugLog.Value) Plugin.Log.LogInfo($"SCREAM stop (remote {viewId})");
+        }
+
+        private void StopAllVoices()
+        {
+            if (_localVoice != null) _localVoice.Stop();
+
+            foreach (ScreamVoice voice in _remoteVoices.Values)
+                if (voice != null) voice.Dispose();
+
+            _remoteVoices.Clear();
         }
     }
 }

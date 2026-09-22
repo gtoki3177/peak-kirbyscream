@@ -29,3 +29,16 @@ Anything in `package/` with those extensions is shipped and auto-detected at run
   (already discounts jumps and bounce pads) exceeds `MinFallTime`, or `data.fallSeconds > 0` (ragdoll fall);
 - **stop** on `isGrounded`, `dead`, climbing anything, being carried, or parachute open;
 - if airborne but no longer falling fast, it waits `StopGraceSeconds` before stopping.
+
+## How the multiplayer side works
+
+Only the falling player's own client decides when a scream starts and stops. It then broadcasts that
+decision with `PhotonNetwork.RaiseEvent` (default code 177, payload `[viewId, isStart]`, reliable, to
+Others). Receivers resolve the character with `Character.GetCharacterWithPhotonID` and hand it to a
+`ScreamVoice`.
+
+`ScreamVoice` owns one AudioSource per screaming character. Remote ones are spatial with a flat custom
+rolloff curve, and volume is driven manually with the same formula `CharacterVoiceHandler` uses for
+proximity voice, so the falloff matches in-game speech. The local player's own scream is 2D so it is
+always clear. A remote voice also self-stops if the character lands, dies, or the scream runs past a
+minute, which covers an owner disconnecting mid-fall before the stop event arrives.

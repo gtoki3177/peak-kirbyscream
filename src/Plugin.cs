@@ -11,7 +11,7 @@ namespace KirbyScream
     {
         public const string GUID = "toiletking.peak.kirbyscream";
         public const string NAME = "KirbyScream";
-        public const string VERSION = "1.0.0";
+        public const string VERSION = "1.1.0";
 
         internal static ManualLogSource Log;
         internal static string PluginDir;
@@ -26,6 +26,15 @@ namespace KirbyScream
         internal static ConfigEntry<float> MinFallTime;
         internal static ConfigEntry<float> MinDownSpeed;
         internal static ConfigEntry<bool> TriggerOnRagdollFall;
+
+        // --- Multiplayer ---
+        internal static ConfigEntry<bool> ShareWithOthers;
+        internal static ConfigEntry<bool> HearOthers;
+        internal static ConfigEntry<float> RemoteVolume;
+        internal static ConfigEntry<float> MaxHearingDistance;
+        internal static ConfigEntry<float> FalloffNearDistance;
+        internal static ConfigEntry<float> DopplerLevel;
+        internal static ConfigEntry<int> NetworkEventCode;
 
         // --- Stop ---
         internal static ConfigEntry<float> StopFadeSeconds;
@@ -62,6 +71,31 @@ namespace KirbyScream
             TriggerOnRagdollFall = Config.Bind("Trigger", "TriggerOnRagdollFall", true,
                 "Also scream immediately when the game puts you into a ragdoll fall (tripped, thrown, knocked off), " +
                 "as long as you are moving downward.");
+
+            ShareWithOthers = Config.Bind("Multiplayer", "ShareWithOthers", true,
+                "Tell other players when you start and stop screaming, so they hear it coming from you. " +
+                "Only players who also have this mod installed will hear anything.");
+            HearOthers = Config.Bind("Multiplayer", "HearOthers", true,
+                "Play other players' screams, positioned on them like proximity voice chat.");
+            RemoteVolume = Config.Bind("Multiplayer", "RemoteVolume", 0.8f,
+                new ConfigDescription("Volume of other players' screams before distance falloff.",
+                    new AcceptableValueRange<float>(0f, 1f)));
+            MaxHearingDistance = Config.Bind("Multiplayer", "MaxHearingDistance", 1000f,
+                new ConfigDescription(
+                    "Far end of the falloff curve, matching the game's voice chat. Screams fade to silence " +
+                    "around a fifth of this distance, so 1000 means audible out to roughly 200 m.",
+                    new AcceptableValueRange<float>(50f, 2000f)));
+            FalloffNearDistance = Config.Bind("Multiplayer", "FalloffNearDistance", 10f,
+                new ConfigDescription("Inside this distance a scream plays at full volume.",
+                    new AcceptableValueRange<float>(1f, 100f)));
+            DopplerLevel = Config.Bind("Multiplayer", "DopplerLevel", 0f,
+                new ConfigDescription("Pitch shift from the falling player's speed. 0 = off, 1 = full Doppler.",
+                    new AcceptableValueRange<float>(0f, 1f)));
+            NetworkEventCode = Config.Bind("Multiplayer", "NetworkEventCode", 177,
+                new ConfigDescription(
+                    "Photon event code used to sync screams. Only change it if it clashes with another mod, " +
+                    "and make sure everyone in the lobby uses the same number.",
+                    new AcceptableValueRange<int>(1, 199)));
 
             StopFadeSeconds = Config.Bind("Stop", "StopFadeSeconds", 0.05f,
                 new ConfigDescription("Fade-out length when the scream stops. 0 = hard cut on impact.",
