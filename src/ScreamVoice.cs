@@ -24,6 +24,9 @@ namespace KirbyScream
 
         public bool IsPlaying => _source != null && _source.isPlaying;
 
+        /// True while this voice is still attached to that exact, living character.
+        public bool IsFor(Character character) => _character != null && _character == character;
+
         public static ScreamVoice Create(Character character, AudioClip clip, bool spatial)
         {
             var go = new GameObject("KirbyScreamVoice");
@@ -72,7 +75,7 @@ namespace KirbyScream
 
         public void Stop()
         {
-            if (_source == null || !_source.isPlaying) return;
+            if (_source == null || !_source.isPlaying || _fading) return;
 
             float fade = Plugin.StopFadeSeconds.Value;
             if (fade <= 0f)

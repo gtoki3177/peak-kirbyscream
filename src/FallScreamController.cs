@@ -31,8 +31,12 @@ namespace KirbyScream
         private ScreamVoice _localVoice;
         private readonly Dictionary<int, ScreamVoice> _remoteVoices = new Dictionary<int, ScreamVoice>();
 
+        private enum BroadcastPath { None, VoiceChat, ModNetwork }
+
         private bool _screaming;
         private float _notFallingFor;
+        private BroadcastPath _path;
+        private bool _warnedVoiceFallback;
 
         private static AccessTools.FieldRef<CharacterBalloons, bool> MakeParachuteRef()
         {
@@ -54,6 +58,7 @@ namespace KirbyScream
         private void OnDisable()
         {
             PhotonNetwork.RemoveCallbackTarget(this);
+            VoiceInjector.Current?.EndScream(0f);
             StopAllVoices();
         }
 
@@ -142,6 +147,8 @@ namespace KirbyScream
                 return;
             }
 
+            MaintainVoiceInjection(c);
+
             CharacterData d = c.data;
 
             // Hard-stop conditions: the fall is over (or never counts as a fall).
@@ -193,13 +200,17 @@ namespace KirbyScream
             _screaming = true;
             if (_clip == null) return;
 
-            if (_localVoice == null)
+            // The local character object is replaced on every scene load; rebind when that happens.
+            if (_localVoice == null || !_localVoice.IsFor(local))
+            {
+                if (_localVoice != null) _localVoice.Dispose();
                 _localVoice = ScreamVoice.Create(local, _clip, spatial: false);
+            }
 
             _localVoice.Play();
-            Broadcast(local, start: true);
+            _path = StartBroadcast(local);
 
-            if (Plugin.DebugLog.Value) Plugin.Log.LogInfo("SCREAM start");
+            if (Plugin.DebugLog.Value) Plugin.Log.LogInfo($"SCREAM start (sent via {_path})");
         }
 
         private void Stop(string reason)
@@ -212,16 +223,94 @@ namespace KirbyScream
 
             if (wasScreaming)
             {
-                Broadcast(Character.localCharacter, start: false);
+                EndBroadcast();
                 if (Plugin.DebugLog.Value) Plugin.Log.LogInfo($"SCREAM stop ({reason})");
             }
         }
 
-        // ------------------------------------------------------------------ networking
+        // ------------------------------------------------------------------ outgoing
+
+        private BroadcastPath StartBroadcast(Character local)
+        {
+            switch (Plugin.Broadcast.Value)
+            {
+                case BroadcastMode.Off:
+                    return BroadcastPath.None;
+
+                case BroadcastMode.VoiceChat:
+                    VoiceInjector injector = VoiceInjector.Current;
+                    if (injector != null && injector.BeginScream())
+                        return BroadcastPath.VoiceChat;
+
+                    if (!_warnedVoiceFallback)
+                    {
+                        _warnedVoiceFallback = true;
+                        Plugin.Log.LogWarning("Voice chat is not available (no microphone, voice not connected yet, " +
+                            "or the stream format is unsupported). Falling back to ModNetwork for now.");
+                    }
+                    goto case BroadcastMode.ModNetwork;
+
+                case BroadcastMode.ModNetwork:
+                    if (!CanBroadcast()) return BroadcastPath.None;
+                    Broadcast(local, start: true);
+                    return BroadcastPath.ModNetwork;
+            }
+            return BroadcastPath.None;
+        }
+
+        private void EndBroadcast()
+        {
+            switch (_path)
+            {
+                case BroadcastPath.VoiceChat:
+                    VoiceInjector.Current?.EndScream(Plugin.StopFadeSeconds.Value);
+                    break;
+                case BroadcastPath.ModNetwork:
+                    Broadcast(Character.localCharacter, start: false);
+                    break;
+            }
+            _path = BroadcastPath.None;
+        }
+
+        /// Keeps the voice injector attached to the local player's Recorder and the scream
+        /// pre-converted to that stream's format, so the first scream goes out with no delay.
+        private void MaintainVoiceInjection(Character local)
+        {
+            if (Plugin.Broadcast.Value != BroadcastMode.VoiceChat) return;
+
+            CharacterVoiceHandler handler = local.refs.voice;
+            if (handler == null) return;
+
+            VoiceInjector injector = VoiceInjector.Current;
+            if (injector == null || injector.gameObject != handler.gameObject)
+            {
+                if (handler.GetComponent<Photon.Voice.Unity.Recorder>() == null) return;
+                // Explicit Unity null checks: the ?? operator bypasses Unity's destroyed-object semantics.
+                injector = handler.GetComponent<VoiceInjector>();
+                if (injector == null) injector = handler.gameObject.AddComponent<VoiceInjector>();
+            }
+
+            if (_clip != null && injector.Ready && !VoiceScreamMixer.HasSamplesFor(injector.SamplingRate, injector.Channels))
+            {
+                float[] samples = VoiceScreamMixer.ConvertClip(_clip, injector.SamplingRate, injector.Channels);
+                if (samples != null)
+                {
+                    VoiceScreamMixer.SetSamples(samples, injector.SamplingRate, injector.Channels);
+                    if (Plugin.DebugLog.Value)
+                        Plugin.Log.LogInfo($"Scream converted for voice chat: {injector.SamplingRate} Hz, {injector.Channels} ch, {samples.Length} samples.");
+                }
+                else
+                {
+                    Plugin.Log.LogWarning("Could not read the scream clip's samples for voice chat.");
+                }
+            }
+        }
+
+        // ------------------------------------------------------------------ mod network
 
         private static bool CanBroadcast()
         {
-            return Plugin.ShareWithOthers.Value && PhotonNetwork.IsConnected && PhotonNetwork.InRoom;
+            return PhotonNetwork.IsConnected && PhotonNetwork.InRoom;
         }
 
         private void Broadcast(Character local, bool start)
@@ -257,8 +346,9 @@ namespace KirbyScream
         {
             if (_clip == null) return;
 
-            if (!_remoteVoices.TryGetValue(viewId, out ScreamVoice voice) || voice == null)
+            if (!_remoteVoices.TryGetValue(viewId, out ScreamVoice voice) || voice == null || !voice.IsFor(character))
             {
+                if (voice != null) voice.Dispose();
                 voice = ScreamVoice.Create(character, _clip, spatial: true);
                 _remoteVoices[viewId] = voice;
             }

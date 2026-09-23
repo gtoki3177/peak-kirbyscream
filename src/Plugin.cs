@@ -2,16 +2,27 @@ using System.IO;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
+using HarmonyLib;
 using UnityEngine;
 
 namespace KirbyScream
 {
+    public enum BroadcastMode
+    {
+        /// Mix the scream into your voice chat. Everyone hears it, mod or not.
+        VoiceChat,
+        /// Send a network message; only players with this mod play it.
+        ModNetwork,
+        /// Only you hear it.
+        Off
+    }
+
     [BepInPlugin(GUID, NAME, VERSION)]
     public class Plugin : BaseUnityPlugin
     {
         public const string GUID = "toiletking.peak.kirbyscream";
         public const string NAME = "KirbyScream";
-        public const string VERSION = "1.1.1";
+        public const string VERSION = "1.2.0";
 
         internal static ManualLogSource Log;
         internal static string PluginDir;
@@ -28,7 +39,10 @@ namespace KirbyScream
         internal static ConfigEntry<bool> TriggerOnRagdollFall;
 
         // --- Multiplayer ---
-        internal static ConfigEntry<bool> ShareWithOthers;
+        internal static ConfigEntry<BroadcastMode> Broadcast;
+        internal static ConfigEntry<float> VoiceChatVolume;
+        internal static ConfigEntry<bool> ForceTransmitWithPushToTalk;
+        internal static ConfigEntry<bool> PauseEchoCancellation;
         internal static ConfigEntry<bool> HearOthers;
         internal static ConfigEntry<float> RemoteVolume;
         internal static ConfigEntry<float> MaxHearingDistance;
@@ -72,11 +86,25 @@ namespace KirbyScream
                 "Also scream immediately when the game puts you into a ragdoll fall (tripped, thrown, knocked off), " +
                 "as long as you are moving downward.");
 
-            ShareWithOthers = Config.Bind("Multiplayer", "ShareWithOthers", true,
-                "Tell other players when you start and stop screaming, so they hear it coming from you. " +
-                "Only players who also have this mod installed will hear anything.");
+            Broadcast = Config.Bind("Multiplayer", "BroadcastMode", BroadcastMode.VoiceChat,
+                "How other players hear your scream.\n" +
+                "VoiceChat: mixed into your microphone, so everyone hears it through normal voice chat, " +
+                "with or without the mod. Needs voice chat working. Falls back to ModNetwork if it is not.\n" +
+                "ModNetwork: a network message; only players with this mod hear it, using their own sound file.\n" +
+                "Off: only you hear it.");
+            VoiceChatVolume = Config.Bind("Multiplayer", "VoiceChatVolume", 0.5f,
+                new ConfigDescription("Loudness of the scream mixed into your voice (VoiceChat mode). " +
+                    "1 is full scale; lower it if friends say it clips.",
+                    new AcceptableValueRange<float>(0f, 1f)));
+            ForceTransmitWithPushToTalk = Config.Bind("Multiplayer", "ForceTransmitWithPushToTalk", true,
+                "VoiceChat mode, push-to-talk users: open your mic channel during a scream even if the key is " +
+                "not held. Your real microphone stays muted then; only the scream is sent.");
+            PauseEchoCancellation = Config.Bind("Multiplayer", "PauseEchoCancellation", true,
+                "VoiceChat mode: switch echo cancellation off while screaming. Otherwise it can recognise the " +
+                "scream playing on your speakers and strip it back out of your voice.");
             HearOthers = Config.Bind("Multiplayer", "HearOthers", true,
-                "Play other players' screams, positioned on them like proximity voice chat.");
+                "Play screams sent by players in ModNetwork mode, positioned on them like proximity voice chat. " +
+                "Screams sent through voice chat are unaffected by this.");
             RemoteVolume = Config.Bind("Multiplayer", "RemoteVolume", 0.8f,
                 new ConfigDescription("Volume of other players' screams before distance falloff.",
                     new AcceptableValueRange<float>(0f, 1f)));
@@ -112,6 +140,15 @@ namespace KirbyScream
 
             DebugLog = Config.Bind("Misc", "DebugLog", false,
                 "Log every scream start/stop with the reason to the BepInEx console.");
+
+            try
+            {
+                new Harmony(GUID).PatchAll(typeof(Plugin).Assembly);
+            }
+            catch (System.Exception e)
+            {
+                Log.LogWarning("Harmony patching failed; push-to-talk players will not transmit screams in VoiceChat mode. " + e);
+            }
 
             var go = new GameObject("KirbyScreamController");
             DontDestroyOnLoad(go);

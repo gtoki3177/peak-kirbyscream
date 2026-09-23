@@ -8,12 +8,21 @@ Instead of waiting for a high fall velocity, this hooks the game's own fall time
 
 ## Multiplayer
 
-Screams are shared over the network, so everyone hears a falling teammate from wherever they actually
-are, using the same distance falloff as the game's proximity voice chat (audible out to roughly 200 m).
+By default your scream is **mixed into your voice chat**, so everyone near you hears it coming
+from you through the game's own proximity voice, **even players who do not have the mod**.
+Distance, direction and muffling all work exactly like your real voice.
 
-**Every player who wants to hear it needs the mod installed.** Players without it are unaffected and
-hear nothing. Each listener plays their own copy of the sound file, so if a friend swapped in a
-different clip, that is what they will hear.
+- It needs working voice chat. With no microphone, or before voice has connected, it falls back
+  to `ModNetwork` for that scream.
+- Push-to-talk players: your voice channel is opened for the fall only, with your real
+  microphone muted, so only the scream goes out.
+- It sounds like voice chat: mono and compressed, like someone yelling into their mic.
+- On speakers, echo cancellation is paused while you scream so it does not erase the scream.
+  Headphones avoid any echo.
+- People without the mod cannot turn it off except by muting you. Be kind in public lobbies.
+
+Set `BroadcastMode = ModNetwork` for the 1.1 behaviour: a network message that only players with
+the mod hear, each using their own sound file. `Off` keeps the scream to yourself.
 
 ## Config (`BepInEx/config/toiletking.peak.kirbyscream.cfg`)
 
@@ -26,9 +35,12 @@ different clip, that is what they will hear.
 | `MinFallTime` | 0.3 | Seconds of free fall before screaming. Raise it if big jumps trigger it. |
 | `MinDownSpeed` | 5 | Minimum downward speed (m/s). |
 | `TriggerOnRagdollFall` | true | Also scream instantly when tripped / thrown / knocked off. |
-| `ShareWithOthers` | true | Broadcast your screams so others hear them. |
-| `HearOthers` | true | Play other players' screams, positioned on them. |
-| `RemoteVolume` | 0.8 | Volume of other players' screams before distance falloff. |
+| `BroadcastMode` | VoiceChat | `VoiceChat`, `ModNetwork` or `Off`. See Multiplayer above. |
+| `VoiceChatVolume` | 0.5 | Loudness of the scream in your voice chat. Lower it if it clips. |
+| `ForceTransmitWithPushToTalk` | true | Open the voice channel during a fall for push-to-talk users, real mic muted. |
+| `PauseEchoCancellation` | true | Pause echo cancellation while screaming so the scream is not filtered out. |
+| `HearOthers` | true | Play screams from players using `ModNetwork`, positioned on them. |
+| `RemoteVolume` | 0.8 | Volume of `ModNetwork` screams before distance falloff. |
 | `MaxHearingDistance` | 1000 | Far end of the falloff curve. Silent at roughly a fifth of this. |
 | `FalloffNearDistance` | 10 | Full volume inside this radius. |
 | `DopplerLevel` | 0 | Pitch shift from the faller's speed. 0 = off. |

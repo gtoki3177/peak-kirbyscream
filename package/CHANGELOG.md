@@ -1,3 +1,12 @@
+## 1.2.0
+- Screams are now mixed into your voice chat by default, so everyone nearby hears them through the
+  game's proximity voice, even players without the mod. New `BroadcastMode` setting picks
+  `VoiceChat`, `ModNetwork` (the 1.1 behaviour) or `Off`, replacing `ShareWithOthers`.
+- Push-to-talk players transmit the scream during a fall with their real microphone muted.
+- Echo cancellation is paused while screaming so it does not remove the scream.
+- Fixed your own scream going silent after the first scene change.
+- Fixed a stop fade that kept restarting instead of finishing.
+
 ## 1.1.1
 - Point website_url at the source repository. In 1.1.0 it pointed back at this Thunderstore page,
   which crashed the Thunderstore Mod Manager view when the Website button was clicked.

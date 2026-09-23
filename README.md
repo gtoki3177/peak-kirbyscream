@@ -1,8 +1,8 @@
 # PEAK KirbyScream mod
 
 A BepInEx plugin for [PEAK](https://store.steampowered.com/app/3527290/PEAK/) that plays a meme Kirby
-falling scream from the moment you start falling until you land or die. Other players running the mod
-hear it positioned on you, with the same distance falloff as the game's proximity voice chat.
+falling scream from the moment you start falling until you land or die. The scream is mixed into your
+voice chat, so everyone nearby hears it from you, with or without the mod.
 
 **Thunderstore:** https://thunderstore.io/c/peak/p/toiletking/KirbyScream/
 
@@ -48,7 +48,29 @@ Anything in `package/` with those extensions is shipped and auto-detected at run
 - **stop** on `isGrounded`, `dead`, climbing anything, being carried, or parachute open;
 - if airborne but no longer falling fast, it waits `StopGraceSeconds` before stopping.
 
-## How the multiplayer side works
+## How voice-chat injection works (BroadcastMode = VoiceChat)
+
+PEAK's voice chat is Photon Voice. `VoiceInjector` is added to the local player's `Recorder` object and
+receives the Recorder's `PhotonVoiceCreated` message, or reads its private `voice` field if the stream
+already exists. It installs a pre-processor (`FloatScreamProcessor` or `ShortScreamProcessor`,
+matching the stream's sample type) on the `LocalVoiceAudio`.
+
+Pre-processors run on Photon's audio thread before the level meter, voice detection, WebRTC DSP and
+the Opus encoder. So the scream trips voice activation like real speech and is encoded as your voice.
+`VoiceScreamMixer` holds the scream, pre-converted on the main thread to the stream's sample rate and
+channel count, and mixes it in under a lock.
+
+`PushData` drops everything while `TransmitEnabled` is false, which is the case for a push-to-talk
+player not holding the key. A Harmony postfix on `CharacterVoiceHandler.PushToTalk` holds
+transmission open during a scream. It sets `VoiceScreamMixer.MuteMic` from the game's own
+`transmitting` decision first, so the real mic is only sent when the game would have sent it anyway.
+The game's "not allowed to talk / blocked" check runs after the postfix and still wins. When the
+scream ends, transmission is handed back before the mic is unmuted.
+
+If the Recorder has a `WebRtcAudioDsp` with echo cancellation on, AEC is switched off for the
+duration of the scream. Otherwise it can match the scream playing on the speakers and cancel it.
+
+## How the mod-network path works (BroadcastMode = ModNetwork)
 
 Only the falling player's own client decides when a scream starts and stops. It then broadcasts that
 decision with `PhotonNetwork.RaiseEvent` (default code 177, payload `[viewId, isStart]`, reliable, to

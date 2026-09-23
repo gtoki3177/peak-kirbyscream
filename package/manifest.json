@@ -1,8 +1,8 @@
 {
     "name": "KirbyScream",
-    "version_number": "1.1.1",
+    "version_number": "1.2.0",
     "website_url": "https://github.com/gtoki3177/peak-kirbyscream",
-    "description": "Plays the meme Kirby falling scream the moment you start falling, until you land or die. Everyone else with the mod hears it coming from you, like voice chat.",
+    "description": "Plays the meme Kirby falling scream the moment you start falling, until you land or die. Goes out through your voice chat, so everyone nearby hears it, even without the mod.",
     "dependencies": [
         "BepInEx-BepInExPack_PEAK-5.4.75301"
     ]
