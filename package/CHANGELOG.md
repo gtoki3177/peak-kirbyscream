@@ -1,3 +1,8 @@
+## 1.2.1
+- Fixed the scream sounding sped up and high-pitched in voice chat. It was converted to the voice
+  encoder's sample rate, but it is mixed in before Photon resamples the microphone, so it now matches
+  the microphone's own rate.
+
 ## 1.2.0
 - Screams are now mixed into your voice chat by default, so everyone nearby hears them through the
   game's proximity voice, even players without the mod. New `BroadcastMode` setting picks

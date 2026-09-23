@@ -23,6 +23,7 @@ namespace KirbyScream
         internal static volatile bool ForceTransmit;
 
         private static AccessTools.FieldRef<Recorder, LocalVoice> _recorderVoice;
+        private static AccessTools.FieldRef<Recorder, IAudioDesc> _recorderInput;
         private static bool _reflectionReady;
 
         private Recorder _recorder;
@@ -43,8 +44,17 @@ namespace KirbyScream
         {
             if (_reflectionReady) return;
             _reflectionReady = true;
-            try { _recorderVoice = AccessTools.FieldRefAccess<Recorder, LocalVoice>("voice"); }
-            catch (Exception e) { Plugin.Log.LogWarning("Could not bind Recorder.voice; will wait for PhotonVoiceCreated instead. " + e.Message); }
+            try
+            {
+                _recorderVoice = AccessTools.FieldRefAccess<Recorder, LocalVoice>("voice");
+                _recorderInput = AccessTools.FieldRefAccess<Recorder, IAudioDesc>("inputSource");
+            }
+            catch (Exception e)
+            {
+                _recorderVoice = null;
+                _recorderInput = null;
+                Plugin.Log.LogWarning("Could not bind Recorder internals; will wait for PhotonVoiceCreated instead. " + e.Message);
+            }
         }
 
         private void Awake()
@@ -68,7 +78,7 @@ namespace KirbyScream
         {
             // The Recorder may have created its voice before we were attached.
             if (_recorderVoice != null && _recorder != null)
-                Install(_recorderVoice(_recorder));
+                Install(_recorderVoice(_recorder), _recorderInput?.Invoke(_recorder));
         }
 
         private void OnDestroy()
@@ -78,14 +88,16 @@ namespace KirbyScream
         }
 
         // Sent by Recorder via SendMessage whenever it (re)creates its outgoing stream.
-        private void PhotonVoiceCreated(PhotonVoiceCreatedParams p) => Install(p?.Voice);
+        private void PhotonVoiceCreated(PhotonVoiceCreatedParams p) => Install(p?.Voice, p?.AudioDesc);
 
         private void PhotonVoiceRemoved()
         {
             _installedOn = null;
         }
 
-        private void Install(LocalVoice voice)
+        /// <param name="input">The Recorder's microphone source. Pre-processors see audio at this rate,
+        /// before Photon resamples to the encoder rate in voice.Info, so the scream must match it.</param>
+        private void Install(LocalVoice voice, IAudioDesc input)
         {
             if (voice == null || ReferenceEquals(voice, _installedOn)) return;
 
@@ -94,9 +106,15 @@ namespace KirbyScream
             else return;   // the placeholder dummy before a real stream exists, or an unknown format
 
             _installedOn = voice;
-            SamplingRate = voice.Info.SamplingRate;
-            Channels = voice.Info.Channels;
-            Plugin.Log.LogInfo($"Scream mixer installed on voice stream ({voice.GetType().Name}, {SamplingRate} Hz, {Channels} ch).");
+
+            bool inputKnown = input != null && input.SamplingRate > 0 && input.Channels > 0;
+            SamplingRate = inputKnown ? input.SamplingRate : voice.Info.SamplingRate;
+            Channels = inputKnown ? input.Channels : voice.Info.Channels;
+
+            Plugin.Log.LogInfo(
+                $"Scream mixer installed on voice stream ({voice.GetType().Name}). " +
+                $"Mic input {SamplingRate} Hz {Channels} ch, encoder {voice.Info.SamplingRate} Hz {voice.Info.Channels} ch" +
+                (inputKnown ? "." : ". Mic format unknown, assuming encoder format; pitch may be off."));
         }
 
         // ------------------------------------------------------------------ scream control
