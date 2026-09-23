@@ -19,8 +19,7 @@
 - Fixed a stop fade that kept restarting instead of finishing.
 
 ## 1.1.1
-- Point website_url at the source repository. In 1.1.0 it pointed back at this Thunderstore page,
-  which crashed the Thunderstore Mod Manager view when the Website button was clicked.
+- Point website_url at the source repository instead of this Thunderstore page.
 
 ## 1.1.0
 - Screams are now heard by everyone else running the mod, positioned on the falling player and
