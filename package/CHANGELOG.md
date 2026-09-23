@@ -1,3 +1,9 @@
+## 1.3.0
+- If you start falling again within a few seconds of the scream stopping, it now continues from where
+  it left off instead of starting over. Clipping a ledge mid-fall no longer restarts the scream.
+  Set with `ResumeWindowSeconds` (default 3, 0 = always restart). Works for your own playback, the
+  voice-chat scream, and ModNetwork screams from others.
+
 ## 1.2.1
 - Fixed the scream sounding sped up and high-pitched in voice chat. It was converted to the voice
   encoder's sample rate, but it is mixed in before Photon resamples the microphone, so it now matches

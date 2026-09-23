@@ -47,6 +47,10 @@ Anything in `package/` with those extensions is shipped and auto-detected at run
   (already discounts jumps and bounce pads) exceeds `MinFallTime`, or `data.fallSeconds > 0` (ragdoll fall);
 - **stop** on `isGrounded`, `dead`, climbing anything, being carried, or parachute open;
 - if airborne but no longer falling fast, it waits `StopGraceSeconds` before stopping.
+- a scream that stopped less than `ResumeWindowSeconds` ago resumes from the same spot. `ScreamVoice`
+  remembers the AudioSource time and `VoiceScreamMixer` the sample position, each recorded on the
+  first stop call so a repeat stop during the fade does not move it. A clip that played to its end
+  leaves no resume point and starts over.
 
 ## How voice-chat injection works (BroadcastMode = VoiceChat)
 

@@ -22,6 +22,10 @@ namespace KirbyScream
         private Coroutine _fade;
         private bool _fading;
 
+        // Where the clip was when it last stopped, so a quick follow-up fall can continue from there.
+        private float _resumeTime = -1f;
+        private float _stoppedAt;
+
         public bool IsPlaying => _source != null && _source.isPlaying;
 
         /// True while this voice is still attached to that exact, living character.
@@ -69,13 +73,33 @@ namespace KirbyScream
             _playingFor = 0f;
             _source.loop = Plugin.Loop.Value;
             _source.volume = CurrentVolume();
-            _source.time = 0f;
+            _source.time = ResumePoint();
             _source.Play();
+        }
+
+        /// Clip time to start from: where the last scream stopped if that was recent enough, else 0.
+        private float ResumePoint()
+        {
+            float saved = _resumeTime;
+            _resumeTime = -1f;
+
+            float window = Plugin.ResumeWindowSeconds.Value;
+            if (window <= 0f || saved < 0f) return 0f;
+            if (Time.unscaledTime - _stoppedAt > window) return 0f;
+
+            // Leave a little room before the end so Unity does not reject the seek.
+            float length = _source.clip.length;
+            return saved < length - 0.05f ? saved : 0f;
         }
 
         public void Stop()
         {
             if (_source == null || !_source.isPlaying || _fading) return;
+
+            // Remember the spot before fading out. A clip that already played to its end never
+            // reaches here, so the next fall starts it over.
+            _resumeTime = _source.time;
+            _stoppedAt = Time.unscaledTime;
 
             float fade = Plugin.StopFadeSeconds.Value;
             if (fade <= 0f)

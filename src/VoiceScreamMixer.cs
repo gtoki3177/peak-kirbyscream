@@ -27,6 +27,10 @@ namespace KirbyScream
         private static int _fadeLen;
         private static int _fadeLeft;
 
+        // Sample position when the scream last stopped, and when (main-thread unscaled time).
+        private static int _resumePos = -1;
+        private static float _stoppedAt;
+
         // When true the real microphone is silenced and only the scream goes out. Used while
         // transmission is held open for a push-to-talk player who is not holding the key.
         private static bool _muteMic;
@@ -45,6 +49,7 @@ namespace KirbyScream
                 _channels = channels;
                 _pos = 0;
                 _playing = false;
+                _resumePos = -1;   // positions from the old buffer do not map onto the new one
             }
         }
 
@@ -54,25 +59,44 @@ namespace KirbyScream
             set { lock (Gate) _muteMic = value; }
         }
 
-        public static void Start(float gain, bool loop)
+        /// <param name="now">Main-thread Time.unscaledTime.</param>
+        /// <param name="resumeWindow">Continue from the last stop if it was at most this many seconds ago. 0 = always restart.</param>
+        public static void Start(float gain, bool loop, float now, float resumeWindow)
         {
             lock (Gate)
             {
                 if (_samples == null) return;
+
+                int resume = _resumePos;
+                _resumePos = -1;
+                bool canResume = resumeWindow > 0f && resume >= 0 && resume < _samples.Length
+                                 && now - _stoppedAt <= resumeWindow;
+
                 _gain = gain;
                 _loop = loop;
-                _pos = 0;
+                // Keep channel frames aligned when resuming mid-buffer.
+                _pos = canResume ? resume - resume % Math.Max(1, _channels) : 0;
                 _fadeLen = 0;
                 _fadeLeft = 0;
                 _playing = true;
             }
         }
 
-        public static void Stop(float fadeSeconds)
+        /// <param name="now">Main-thread Time.unscaledTime.</param>
+        public static void Stop(float fadeSeconds, float now)
         {
             lock (Gate)
             {
+                // A scream that already played to its end has nothing to resume, so the next one starts over.
                 if (!_playing) return;
+
+                // Record the spot on the first stop only; a repeat call during the fade must not move it.
+                if (_fadeLen == 0)
+                {
+                    _resumePos = _pos;
+                    _stoppedAt = now;
+                }
+
                 int fade = (int)(fadeSeconds * _rate) * Math.Max(1, _channels);
                 if (fade <= 0)
                 {

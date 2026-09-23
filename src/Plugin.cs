@@ -22,7 +22,7 @@ namespace KirbyScream
     {
         public const string GUID = "toiletking.peak.kirbyscream";
         public const string NAME = "KirbyScream";
-        public const string VERSION = "1.2.1";
+        public const string VERSION = "1.3.0";
 
         internal static ManualLogSource Log;
         internal static string PluginDir;
@@ -31,6 +31,7 @@ namespace KirbyScream
         internal static ConfigEntry<string> AudioFile;
         internal static ConfigEntry<float> Volume;
         internal static ConfigEntry<bool> Loop;
+        internal static ConfigEntry<float> ResumeWindowSeconds;
         internal static ConfigEntry<bool> UseGameSfxMixer;
 
         // --- Trigger ---
@@ -71,6 +72,11 @@ namespace KirbyScream
                 new ConfigDescription("Playback volume.", new AcceptableValueRange<float>(0f, 1f)));
             Loop = Config.Bind("Audio", "Loop", true,
                 "Keep looping the clip until you land or die. If false it plays once per fall.");
+            ResumeWindowSeconds = Config.Bind("Audio", "ResumeWindowSeconds", 3f,
+                new ConfigDescription(
+                    "If you start falling again within this many seconds of the scream stopping (clipping a ledge, " +
+                    "a short bounce), it carries on from where it left off instead of starting over. 0 = always restart.",
+                    new AcceptableValueRange<float>(0f, 30f)));
             UseGameSfxMixer = Config.Bind("Audio", "UseGameSfxMixer", true,
                 "Route through the game's SFX mixer so the in-game SFX volume slider applies.");
 

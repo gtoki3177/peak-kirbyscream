@@ -129,7 +129,8 @@ namespace KirbyScream
                 _pausedAec = true;
             }
 
-            VoiceScreamMixer.Start(Plugin.VoiceChatVolume.Value, Plugin.Loop.Value);
+            VoiceScreamMixer.Start(Plugin.VoiceChatVolume.Value, Plugin.Loop.Value,
+                Time.unscaledTime, Plugin.ResumeWindowSeconds.Value);
             ForceTransmit = Plugin.ForceTransmitWithPushToTalk.Value;
             _onAir = true;
             return true;
@@ -140,7 +141,7 @@ namespace KirbyScream
             if (!_onAir) return;
             _onAir = false;
 
-            VoiceScreamMixer.Stop(fadeSeconds);
+            VoiceScreamMixer.Stop(fadeSeconds, Time.unscaledTime);
             ForceTransmit = false;
 
             // Hand transmission back to the game's own decision before letting the mic through again.

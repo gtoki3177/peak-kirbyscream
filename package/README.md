@@ -31,6 +31,7 @@ the mod hear, each using their own sound file. `Off` keeps the scream to yoursel
 | `AudioFile` | *(empty)* | File next to the dll to play. Empty = first `.ogg` / `.wav` / `.mp3` found. |
 | `Volume` | 0.6 | Volume 0-1. |
 | `Loop` | true | Loop until the fall ends. |
+| `ResumeWindowSeconds` | 3 | Fall again within this many seconds and the scream continues where it stopped. 0 = always restart. |
 | `UseGameSfxMixer` | true | Respect the in-game SFX volume slider. |
 | `MinFallTime` | 0.3 | Seconds of free fall before screaming. Raise it if big jumps trigger it. |
 | `MinDownSpeed` | 5 | Minimum downward speed (m/s). |
