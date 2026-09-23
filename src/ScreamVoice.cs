@@ -65,6 +65,18 @@ namespace KirbyScream
             return voice;
         }
 
+        /// Switches to another sound. Its resume point belonged to the old clip, so it is dropped.
+        public void SetClip(AudioClip clip)
+        {
+            if (_source == null || clip == null || _source.clip == clip) return;
+
+            if (_fade != null) { StopCoroutine(_fade); _fade = null; }
+            _fading = false;
+            _source.Stop();
+            _source.clip = clip;
+            _resumeTime = -1f;
+        }
+
         public void Play()
         {
             if (_source == null || _source.clip == null) return;

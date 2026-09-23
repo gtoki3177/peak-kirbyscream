@@ -36,8 +36,14 @@ version it last installed until you update it there again.
 
 ## Audio
 
-Put the scream as `package/scream.ogg` (or `.wav` / `.mp3`) before building.
-Anything in `package/` with those extensions is shipped and auto-detected at runtime.
+Built-in sounds go in `package/sounds/` and ship in the mod's `sounds/` folder. Players add their own
+under `BepInEx/config/KirbyScream/`, which the manager leaves alone on updates. `SoundLibrary` scans
+both at startup (plus loose files next to the dll, the 1.x layout), before the config is bound, so the
+`Sound` setting can offer the found names plus `Random` as an `AcceptableValueList` dropdown.
+
+For voice chat, each sound is converted to the mic stream's format ahead of time. The controller keeps
+buffers only for the current sound (for resuming) and the upcoming one, the pre-rolled next pick in
+Random mode, converting at most one per frame.
 
 ## How detection works
 

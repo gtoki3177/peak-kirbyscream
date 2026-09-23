@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
@@ -22,13 +24,13 @@ namespace KirbyScream
     {
         public const string GUID = "toiletking.peak.kirbyscream";
         public const string NAME = "KirbyScream";
-        public const string VERSION = "1.3.0";
+        public const string VERSION = "1.4.0";
 
         internal static ManualLogSource Log;
         internal static string PluginDir;
 
         // --- Audio ---
-        internal static ConfigEntry<string> AudioFile;
+        internal static ConfigEntry<string> Sound;
         internal static ConfigEntry<float> Volume;
         internal static ConfigEntry<bool> Loop;
         internal static ConfigEntry<float> ResumeWindowSeconds;
@@ -65,9 +67,6 @@ namespace KirbyScream
             Log = Logger;
             PluginDir = Path.GetDirectoryName(Info.Location);
 
-            AudioFile = Config.Bind("Audio", "AudioFile", "",
-                "File name of the scream (relative to the mod folder, or an absolute path). " +
-                "Leave empty to use the first .ogg / .wav / .mp3 found next to the plugin dll.");
             Volume = Config.Bind("Audio", "Volume", 0.6f,
                 new ConfigDescription("Playback volume.", new AcceptableValueRange<float>(0f, 1f)));
             Loop = Config.Bind("Audio", "Loop", true,
@@ -147,6 +146,10 @@ namespace KirbyScream
             DebugLog = Config.Bind("Misc", "DebugLog", false,
                 "Log every scream start/stop with the reason to the BepInEx console.");
 
+            // Sound is bound last: its list of choices comes from the files found on disk.
+            SoundLibrary.Scan();
+            BindSound();
+
             try
             {
                 new Harmony(GUID).PatchAll(typeof(Plugin).Assembly);
@@ -162,6 +165,29 @@ namespace KirbyScream
             go.AddComponent<FallScreamController>();
 
             Log.LogInfo($"{NAME} {VERSION} loaded.");
+        }
+
+        private void BindSound()
+        {
+            List<string> names = SoundLibrary.Names.ToList();
+            string description =
+                "Which sound to scream. 'Random' picks a different one for every fall.\n" +
+                "Add your own .ogg / .wav / .mp3 files to BepInEx/config/KirbyScream and restart the game; " +
+                "each file shows up here under its name without the extension.";
+
+            if (names.Count == 0)
+            {
+                Sound = Config.Bind("Audio", "Sound", SoundLibrary.PreferredDefault, description);
+                return;
+            }
+
+            var choices = new List<string> { SoundLibrary.RandomChoice };
+            choices.AddRange(names);
+            Sound = Config.Bind("Audio", "Sound", SoundLibrary.DefaultName,
+                new ConfigDescription(description, new AcceptableValueList<string>(choices.ToArray())));
+
+            Log.LogInfo($"Sounds: {string.Join(", ", names.Select(n => SoundLibrary.IsCustom(n) ? n + " (custom)" : n))}. " +
+                        $"Selected: {Sound.Value}");
         }
     }
 }

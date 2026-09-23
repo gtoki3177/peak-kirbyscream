@@ -44,6 +44,9 @@ namespace KirbyScream
         {
             lock (Gate)
             {
+                // Same buffer again: keep the position and resume point untouched.
+                if (ReferenceEquals(samples, _samples) && rate == _rate && channels == _channels) return;
+
                 _samples = samples;
                 _rate = rate;
                 _channels = channels;

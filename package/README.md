@@ -28,7 +28,7 @@ the mod hear, each using their own sound file. `Off` keeps the scream to yoursel
 
 | Key | Default | What it does |
 | --- | --- | --- |
-| `AudioFile` | *(empty)* | File next to the dll to play. Empty = first `.ogg` / `.wav` / `.mp3` found. |
+| `Sound` | kirby_fall | Which sound to scream, or `Random` for a different one every fall. |
 | `Volume` | 0.6 | Volume 0-1. |
 | `Loop` | true | Loop until the fall ends. |
 | `ResumeWindowSeconds` | 3 | Fall again within this many seconds and the scream continues where it stopped. 0 = always restart. |
@@ -52,8 +52,22 @@ the mod hear, each using their own sound file. `Off` keeps the scream to yoursel
 | `StopWhenClimbing` | true | |
 | `DebugLog` | false | Log start/stop reasons to the console. |
 
-## Swap the sound
+## Custom sounds
 
-Drop any `.ogg`, `.wav` or `.mp3` into the mod folder and set `AudioFile` (or just leave a single file there).
+Put your own `.ogg`, `.wav` or `.mp3` files in:
+
+```
+BepInEx/config/KirbyScream/
+```
+
+Restart the game and each file becomes a choice for `Sound`, named after the file without its
+extension: `wilhelm.ogg` shows up as `wilhelm`. The folder is created on first launch, and in
+Thunderstore Mod Manager you can reach it through Settings, Browse profile folder.
+
+- `Sound = Random` picks a different sound for every fall.
+- A custom file with the same name as a built-in sound replaces it.
+- This folder survives mod updates. Do not put sounds in the mod's own folder; the manager
+  replaces that on every update.
+- In voice chat mode everyone hears the sound **you** picked, whether or not they have the mod.
 
 Client-side only; other players do not need it.

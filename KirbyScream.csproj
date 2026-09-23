@@ -4,7 +4,7 @@
     <TargetFramework>netstandard2.1</TargetFramework>
     <AssemblyName>KirbyScream</AssemblyName>
     <RootNamespace>KirbyScream</RootNamespace>
-    <Version>1.3.0</Version>
+    <Version>1.4.0</Version>
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
@@ -71,17 +71,23 @@
     <ItemGroup>
       <StageFiles Include="$(TargetPath)" />
       <StageFiles Include="package\manifest.json;package\README.md;package\CHANGELOG.md;package\icon.png" />
-      <StageFiles Include="package\*.ogg;package\*.wav;package\*.mp3" />
+      <!-- Preset sounds keep their sounds/ subfolder. -->
+      <PresetSounds Include="package\sounds\*.ogg;package\sounds\*.wav;package\sounds\*.mp3" />
     </ItemGroup>
     <RemoveDir Directories="$(StageDir)" />
     <Copy SourceFiles="@(StageFiles)" DestinationFolder="$(StageDir)" />
+    <Copy SourceFiles="@(PresetSounds)" DestinationFolder="$(StageDir)sounds" />
     <MakeDir Directories="$(DistDir)" />
     <Delete Files="$(ZipPath)" />
     <ZipDirectory SourceDirectory="$(StageDir)" DestinationFile="$(ZipPath)" Overwrite="true" />
     <Message Importance="high" Text="KirbyScream: Thunderstore zip at $(ZipPath)" />
 
-    <MakeDir Directories="$(TestPluginDir)" Condition="'$(DeployToProfile)' == 'true'" />
-    <Copy SourceFiles="@(StageFiles)" DestinationFolder="$(TestPluginDir)" Condition="'$(DeployToProfile)' == 'true'" />
+    <!-- Deploy mirrors the staged layout, subfolders included. -->
+    <ItemGroup Condition="'$(DeployToProfile)' == 'true'">
+      <Staged Include="$(StageDir)**\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(Staged)" DestinationFiles="@(Staged->'$(TestPluginDir)\%(RecursiveDir)%(Filename)%(Extension)')"
+          Condition="'$(DeployToProfile)' == 'true'" />
     <Message Importance="high" Text="KirbyScream: deployed to $(TestPluginDir)" Condition="'$(DeployToProfile)' == 'true'" />
   </Target>
 

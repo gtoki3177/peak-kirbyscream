@@ -1,3 +1,12 @@
+## 1.4.0
+- Custom sounds. Drop `.ogg` / `.wav` / `.mp3` files into `BepInEx/config/KirbyScream/` and pick one with
+  the new `Sound` setting, or set it to `Random` for a different sound every fall. That folder is kept
+  when the mod updates. A custom file with a built-in sound's name replaces it.
+- Built-in sounds now live in the mod's `sounds/` folder.
+- `Sound` replaces the old `AudioFile` setting.
+- In ModNetwork mode the sound's name is sent along, so listeners who have the same sound play it.
+- A quick follow-up fall keeps the same sound so it can resume, even in Random mode.
+
 ## 1.3.0
 - If you start falling again within a few seconds of the scream stopping, it now continues from where
   it left off instead of starting over. Clipping a ledge mid-fall no longer restarts the scream.
